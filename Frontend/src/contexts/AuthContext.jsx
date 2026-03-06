@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext()
@@ -10,7 +11,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
-    // Only used on page refresh — restore existing session
     const init = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -26,10 +26,12 @@ export function AuthProvider({ children }) {
 
     init()
 
-    // Only handle sign out — Login.jsx handles SIGNED_IN itself
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        if (mounted) setUser(null)
+      if (!mounted) return
+      if (event === 'SIGNED_IN') {
+        setUser(session?.user ?? null)
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null)
       }
     })
 
@@ -53,8 +55,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
+  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider')
   return context
 }
